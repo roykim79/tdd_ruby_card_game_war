@@ -21,9 +21,9 @@ class WarGame
     'A' => 13
   }
 
-  def initialize()
-    @player_1 = WarPlayer.new('Player 1')
-    @player_2 = WarPlayer.new('Player 2')
+  def initialize(player_1 = WarPlayer.new('Player 1'), player_2 = WarPlayer.new('Player 2'))
+    @player_1 = player_1
+    @player_2 = player_2
     @tabled_cards = []
   end
 
