@@ -106,6 +106,10 @@ describe WarSocketServer do
         end
       end
     end
+
+    it "wait for the players to say they are ready before playing a round" do
+
+    end
   end
 
 
