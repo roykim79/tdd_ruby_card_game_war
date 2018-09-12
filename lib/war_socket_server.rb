@@ -1,11 +1,10 @@
 require 'socket'
-require 'war_game'
+require_relative 'war_game'
+require_relative 'war_client'
+require_relative 'war_socket_game_runner'
 
 class WarSocketServer
-  attr_reader :games, :players
-
   def initialize
-    # @players = []
   end
 
   def port_number
@@ -20,14 +19,14 @@ class WarSocketServer
     @server = TCPServer.new(port_number)
   end
 
-  def accept_new_client(player_name = "Random Player")
-    client = @server.accept_nonblock
+  def accept_new_client(player_name = 'Random Player')
+    client = WarClient.new(@server.accept_nonblock, player_name)
     pending_clients.push(client)
-    # associate player and client
-    client.puts(pending_clients.count.odd? ? "Welcome #{player_name}. Waiting for another player to join." : "Welcome #{player_name}. You are about to go to war.")
-
+    client.connection.puts(pending_clients.count.odd? ? "Welcome #{player_name}. Waiting for another player to join." : "Welcome #{player_name}. You are about to go to war.")
+    puts "#{player_name} has joined"
+    client
   rescue IO::WaitReadable, Errno::EINTR
-    puts "No client to accept"
+    puts 'No client to accept'
   end
 
   def create_game_if_possible
@@ -36,14 +35,15 @@ class WarSocketServer
       games.push(game)
       games_to_humans[game] = pending_clients.shift(2)
       game.start
-      inform_players_of_hand(game)
+      game
     end
   end
 
   def run_game(game)
-    # spawn a thread
-    game_runner = WarSocketGameRunner.new(game, games_to_humans(game))
-    game_runner.start
+    Thread.start do
+      game_runner = WarSocketGameRunner.new(game, games_to_humans[game])
+      game_runner.start
+    end
   end
 
   def stop
@@ -51,12 +51,6 @@ class WarSocketServer
   end
 
   private
-
-  def inform_players_of_hand(game)
-    humans = games_to_humans[game]
-    humans[0].puts("You have #{game.player1.cards_left} cards left")
-    humans[1].puts("You have #{game.player2.cards_left} cards left")
-  end
 
   def pending_clients
     @pending_clients ||= []
@@ -66,9 +60,7 @@ class WarSocketServer
     @games_to_humans ||= {}
   end
 
-  def inform_players_of_hand(game)
-    humans = games_to_humans[game]
-    humans[0].puts("You have #{game.player_1.cards_left} cards left")
-    humans[1].puts("You have #{game.player_2.cards_left} cards left")
+  def players
+    @players ||= {}
   end
 end

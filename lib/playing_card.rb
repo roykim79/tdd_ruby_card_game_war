@@ -1,9 +1,9 @@
 class PlayingCard
   attr_reader :rank, :suit
 
-  def initialize(attributes)
-    @rank = attributes.fetch(:rank)
-    @suit = attributes.fetch(:suit)
+  def initialize(rank:, suit:)
+    @rank = rank
+    @suit = suit
   end
 
   def inspect

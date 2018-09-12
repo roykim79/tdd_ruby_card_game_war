@@ -13,11 +13,17 @@ class MockWarSocketClient
     @socket.puts(text)
   end
 
+  def accept_message(text)
+    (text)
+  end
+
   def capture_output(delay=0.1)
     sleep(delay)
-    @output = @socket.read_nonblock(1000) # not gets which blocks
-  rescue IO::WaitReadable
-    @output = ""
+    begin
+      @output = @socket.read_nonblock(1000) # not gets which blocks
+    rescue IO::WaitReadable
+      @output = ""
+    end
   end
 
   def close
@@ -25,95 +31,60 @@ class MockWarSocketClient
   end
 end
 
+def set_up_clients(int, server, clients, server_clients = [])
+  int.times do
+    clients.push(MockWarSocketClient.new(server.port_number))
+    server_clients.push(server.accept_new_client)
+  end
+end
+
 describe WarSocketServer do
-  before :each do
-    @clients = []
-    @server = WarSocketServer.new
-  end
+  let(:clients) { [] }
+  let(:server) { WarSocketServer.new }
+  let(:game) { server.create_game_if_possible }
 
-  context "the initial state of the server" do
-    it "is not listening on a port before it is started"  do
-      expect {MockWarSocketClient.new(@server.port_number)}.to raise_error(Errno::ECONNREFUSED)
+  context "before the server has started" do
+    it "is not listening on a port"  do
+      expect {MockWarSocketClient.new(server.port_number)}.to raise_error(Errno::ECONNREFUSED)
     end
   end
 
-  context 'the initial game setup' do
-    let(:client1) { MockWarSocketClient.new(@server.port_number) }
-    let(:client2) { MockWarSocketClient.new(@server.port_number) }
-
+  context "after the server has started" do
     before(:each) do
-      @server.start
-      @clients.push(client1)
-      @server.accept_new_client("Player 1")
-      @server.create_game_if_possible
+      server.start
+    end
+    
+    after(:each) do
+      server.stop
+      clients.each(&:close)
     end
 
-    after(:each) do
-      @server.stop
-      @clients.each do |client|
-        client.close
+    context "the initial game setup" do
+      it "won't start a game with only 1 client" do
+        set_up_clients(1, server, clients)
+        server.create_game_if_possible
+        expect(server.games.count).to be 0
+      end
+      
+      it "starts a game when there are 2 clients" do
+        set_up_clients(2, server, clients)
+        server.create_game_if_possible
+        expect(server.games.count).to be 1
+      end
+      
+      it "sends a message to each client after they join" do
+        set_up_clients(2, server, clients)
+        clients.each { |client| expect(client.capture_output).to match /Welcome Random Player/ }
       end
     end
-
-    it "accepts new clients and starts a game if possible" do
-      expect(@server.games.count).to be 0
-      @clients.push(client2)
-      @server.accept_new_client("Player 2")
-      @server.create_game_if_possible
-      expect(@server.games.count).to be 1
-    end
-
-    # Add more tests to make sure the game is being played
-    # For example:
-    #   make sure the mock client gets appropriate output
-    #   make sure the next round isn't played until both clients say they are ready to play
-    #   ...
-    it "sends a message to the client once they join" do
-      expect(client1.capture_output).to match /Welcome Player 1. Waiting for another player to join./
-      @clients.push(client2)
-      @server.accept_new_client("Player 2")
-      expect(client2.capture_output).to match /Welcome Player 2. You are about to go to war./
+    
+    context "during the game play" do
+      it "returns a string that includes the cards left after each round" do
+        set_up_clients(2, server, clients)
+        clients.each { |client| client.provide_input('play') }
+        server.run_game(game)
+        clients.each { |client| expect(client.capture_output).to match /cards left/ }
+      end
     end
   end
-
-  context "the game play" do
-    let(:client1) { MockWarSocketClient.new(@server.port_number) }
-    let(:client2) { MockWarSocketClient.new(@server.port_number) }
-
-    before(:each) do
-      @server.start
-      @clients.push(client1)
-      @server.accept_new_client("Player 1")
-      client1.capture_output
-      @server.create_game_if_possible
-      @clients.push(client2)
-      @server.accept_new_client("Player 2")
-      client2.capture_output
-      @server.create_game_if_possible
-    end
-
-    after(:each) do
-      @server.stop
-      @clients.each do |client|
-        client.close
-      end
-    end
-
-    describe '#inform_players_of_hand' do
-      it "tells each player how many cards they have left" do
-        @clients.each do |client|
-          expect(client.capture_output).to match /You have 26 cards left/
-        end
-      end
-    end
-
-    it "wait for the players to say they are ready before playing a round" do
-
-    end
-  end
-
-
-
-
-
 end

@@ -1,6 +1,6 @@
 
 class WarPlayer
-  attr_accessor :name, :cards
+  attr_reader :name, :cards
 
   def initialize(name, client = nil)
     @name = name
@@ -9,14 +9,18 @@ class WarPlayer
   end
 
   def add_card(card)
-    @cards.push(card)
+    cards.push(card)
   end
 
   def cards_left
-    @cards.length
+    cards.length
+  end
+
+  def take_cards(array_of_cards)
+    @cards += array_of_cards
   end
 
   def play_card
-    @cards.shift
+    cards.shift
   end
 end

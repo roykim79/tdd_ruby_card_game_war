@@ -2,7 +2,7 @@ require_relative '../lib/playing_card'
 
 describe 'PlayingCard' do
   before :each do
-    @card = PlayingCard.new({:rank => 'A', :suit => 'Spades'})
+    @card = PlayingCard.new(rank: 'A', suit: 'Spades')
   end
 
   describe 'rank' do
